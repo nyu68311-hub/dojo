@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>道場</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#121110">
+<meta name="description" content="必須の習慣を一日でも落とせば門下生が倒れる、静かに積み上げるための修行アプリ。">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="道場">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 修行者の帳面。墨の地に段位を明朝で大きく据え、日々の掟を罫線の帳面として並べる。PCでは左に門下生、右に本日の帳面。 */
+:root{
+  --sumi:#121110;      /* 地 */
+  --ita:#1a1816;       /* 板 */
+  --ita2:#23201c;      /* 板・押下 */
+  --sen:#2f2b26;       /* 罫線 */
+  --washi:#e8e2d6;     /* 文字 */
+  --nezumi:#8f887c;    /* 控えめな文字 */
+  --kin:#c09c60;       /* 鈍い金 */
+  --kin-dim:#6f5b3b;
+  --shu:#b4493a;       /* 朱（印・警告） */
+  --koke:#86a070;      /* 苔（果たした） */
+  --f-mincho:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+  --f-gothic:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic UI","Yu Gothic",system-ui,sans-serif;
+  --tabh:64px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--sumi);color:var(--washi)}
+body{font-family:var(--f-gothic);font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--kin);outline-offset:2px;border-radius:4px}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1080px;margin:0 auto;padding-bottom:calc(var(--tabh) + 32px + env(safe-area-inset-bottom,0px))}
+
+/* header */
+.top{display:flex;align-items:center;gap:12px;padding-block:18px 10px;border-bottom:1px solid var(--sen)}
+.brand{font-family:var(--f-mincho);font-weight:800;font-size:24px;letter-spacing:.2em;margin:0}
+.dojochip{font-size:12px;color:var(--nezumi);letter-spacing:.08em;display:flex;gap:6px;align-items:center}
+.dojochip b{color:var(--kin);font-weight:500;font-family:var(--f-mincho);font-size:14px;letter-spacing:.12em}
+.sync{margin-left:auto;font-size:11px;color:var(--nezumi);letter-spacing:.06em}
+.sync i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--koke);margin-right:6px;vertical-align:1px}
+.sync.local i{background:var(--nezumi)}
+.topnav{display:none}
+
+/* tabs (mobile bottom) */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:color-mix(in srgb,var(--sumi) 92%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border-top:1px solid var(--sen);display:grid;grid-template-columns:repeat(4,1fr);
+  padding:0 max(8px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(8px,env(safe-area-inset-left,0px))}
+.tabbar a,.topnav a{text-decoration:none;color:var(--nezumi);display:flex;flex-direction:column;align-items:center;justify-content:center;height:var(--tabh);gap:2px;font-size:11px;letter-spacing:.1em}
+.tabbar a span{font-family:var(--f-mincho);font-size:19px;line-height:1;font-weight:700}
+.tabbar a[aria-current="page"],.topnav a[aria-current="page"]{color:var(--kin)}
+
+/* today layout */
+.today{display:grid;gap:28px;padding-top:24px;grid-template-areas:"hero" "odai" "habits" "note" "stats"}
+.a-hero{grid-area:hero}.a-odai{grid-area:odai}.a-habits{grid-area:habits}.a-note{grid-area:note}.a-stats{grid-area:stats}
+@media (min-width:900px){
+  .tabbar{display:none}
+  .wrap{padding-bottom:48px}
+  .topnav{display:flex;gap:4px;margin-left:24px}
+  .topnav a{flex-direction:row;height:auto;padding:6px 12px;font-size:14px;letter-spacing:.14em;font-family:var(--f-mincho);font-weight:700}
+  .today{grid-template-columns:minmax(0,5fr) minmax(0,6fr);column-gap:56px;grid-template-areas:"hero odai" "hero habits" "stats habits" "stats note" ". note";align-items:start}
+  .a-hero{position:sticky;top:20px}
+}
+
+.label{font-size:11px;letter-spacing:.24em;color:var(--nezumi);margin:0 0 10px;font-weight:500}
+.hero{position:relative;padding-block:6px}
+.gen{font-family:var(--f-mincho);font-size:15px;letter-spacing:.3em;color:var(--nezumi)}
+.dan{font-family:var(--f-mincho);font-weight:800;font-size:clamp(56px,14vw,88px);line-height:1.05;letter-spacing:.06em;margin:6px 0 12px;text-wrap:balance}
+.dan.kaiden{color:var(--kin)}
+.days{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.days b{font-family:var(--f-mincho);font-size:40px;font-weight:700;line-height:1}
+.days small{color:var(--nezumi);font-size:13px}
+.prog{height:3px;background:var(--sen);margin:16px 0 8px;position:relative;overflow:hidden}
+.prog i{position:absolute;inset:0 auto 0 0;background:var(--kin);transition:width .6s ease}
+.next{font-size:13px;color:var(--nezumi);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.deadline{margin-top:18px;padding:12px 14px;border-left:2px solid var(--shu);background:var(--ita);font-size:13px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.deadline.ok{border-left-color:var(--koke)}
+.deadline b{font-weight:700}
+.deadline .cd{color:var(--nezumi)}
+.best{margin-top:14px;font-size:12px;color:var(--nezumi);letter-spacing:.06em}
+.best b{color:var(--washi);font-weight:500}
+.seal{position:absolute;top:0;right:0;width:72px;height:72px;border:3px solid var(--shu);color:var(--shu);border-radius:10px;display:grid;place-items:center;
+  font-family:var(--f-mincho);font-weight:800;font-size:38px;transform:rotate(-8deg);opacity:.9}
+.seal.pop{animation:stamp .5s cubic-bezier(.2,1.6,.4,1)}
+@keyframes stamp{0%{transform:scale(2.4) rotate(-20deg);opacity:0}100%{transform:scale(1) rotate(-8deg);opacity:.9}}
+
+.odai{border:1px solid var(--kin-dim);padding:18px 18px 16px;display:grid;gap:12px;background:linear-gradient(180deg,color-mix(in srgb,var(--kin) 6%,var(--ita)),var(--ita))}
+.odai .t{font-family:var(--f-mincho);font-size:24px;font-weight:700;letter-spacing:.08em;line-height:1.4;text-wrap:balance}
+.odai .row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.odai .xp{font-size:12px;color:var(--nezumi)}
+.odai.done{border-color:var(--koke)}
+.btn{border:1px solid var(--sen);background:var(--ita);padding:9px 16px;border-radius:2px;letter-spacing:.1em;font-size:14px}
+.btn:hover{background:var(--ita2)}
+.btn.kin{border-color:var(--kin);color:var(--kin)}
+.btn.solid{background:var(--kin);border-color:var(--kin);color:var(--sumi);font-weight:700}
+.btn.solid:disabled{opacity:.35;cursor:not-allowed}
+.btn.sm{padding:5px 10px;font-size:12px}
+.btn.ghost{background:none;border-color:transparent;color:var(--nezumi)}
+.btn.ghost:hover{color:var(--washi)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+.group{margin-bottom:22px}
+.glabel{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.24em;color:var(--nezumi);padding-bottom:6px;border-bottom:1px solid var(--sen)}
+.glabel.req{color:var(--shu)}
+.habit{width:100%;display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:14px;padding:14px 2px;background:none;border:0;border-bottom:1px solid var(--sen);text-align:left}
+.habit:hover{background:color-mix(in srgb,var(--ita) 70%,transparent)}
+.box{width:24px;height:24px;border:1.5px solid var(--nezumi);display:grid;place-items:center;font-family:var(--f-mincho);font-size:14px;font-weight:800;color:transparent;transition:all .15s}
+.habit[aria-pressed="true"] .box{background:var(--kin);border-color:var(--kin);color:var(--sumi)}
+.habit[aria-pressed="true"] .hn{color:var(--nezumi);text-decoration:line-through;text-decoration-color:var(--kin-dim)}
+.hn{font-size:16px;min-width:0;overflow-wrap:anywhere}
+.hn small{display:block;font-size:11px;color:var(--shu);letter-spacing:.08em}
+.tag{font-family:var(--f-mincho);font-weight:700;font-size:13px;color:var(--kin);border:1px solid var(--kin-dim);width:26px;height:26px;display:grid;place-items:center}
+.empty{color:var(--nezumi);font-size:13px;padding:14px 0}
+
+textarea{width:100%;min-height:96px;background:var(--ita);border:1px solid var(--sen);padding:12px 14px;resize:vertical;line-height:1.7;border-radius:2px}
+textarea:focus,input:focus,select:focus{outline:none;border-color:var(--kin-dim)}
+.hint{font-size:12px;color:var(--nezumi);margin-top:6px}
+
+.statsbox{display:grid;gap:8px}
+.radar{width:100%;max-width:320px;margin:0 auto;display:block}
+.radar .grid{fill:none;stroke:var(--sen)}
+.radar .axis{stroke:var(--sen)}
+.radar .shape{fill:color-mix(in srgb,var(--kin) 22%,transparent);stroke:var(--kin);stroke-width:1.5}
+.radar .dot{fill:var(--kin)}
+.radar .lk{fill:var(--washi);font-family:var(--f-mincho);font-weight:700;font-size:16px}
+.radar .lv{fill:var(--nezumi);font-size:11px}
+.statlist{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--sen);border-bottom:1px solid var(--sen)}
+.statlist div{text-align:center;padding:8px 0}
+.statlist b{display:block;font-family:var(--f-mincho);font-size:18px}
+.statlist span{font-size:13px;color:var(--nezumi)}
+
+/* pages */
+.page{padding-top:24px;max-width:720px}
+.h2{font-family:var(--f-mincho);font-weight:800;font-size:28px;letter-spacing:.14em;margin:0 0 6px}
+.lead{color:var(--nezumi);font-size:13px;margin:0 0 24px}
+.entry{display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;padding:16px 0;border-bottom:1px solid var(--sen)}
+.entry .d{font-family:var(--f-mincho);font-size:20px;font-weight:700;line-height:1.2}
+.entry .d small{display:block;font-family:var(--f-gothic);font-size:11px;color:var(--nezumi);font-weight:400;margin-top:4px}
+.entry .note{font-family:var(--f-mincho);font-size:16px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;margin:0 0 6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:11px;color:var(--nezumi);border:1px solid var(--sen);padding:1px 8px}
+.chip.o{color:var(--kin);border-color:var(--kin-dim)}
+.genmark{font-size:11px;letter-spacing:.24em;color:var(--kin);padding:22px 0 4px}
+
+.bestbig{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--sen);margin-bottom:28px}
+.bestbig div{padding:16px}
+.bestbig div+div{border-left:1px solid var(--sen)}
+.bestbig b{display:block;font-family:var(--f-mincho);font-size:36px;font-weight:700;line-height:1.2}
+.bestbig span{font-size:11px;color:var(--nezumi);letter-spacing:.2em}
+.ladder{list-style:none;margin:0 0 32px;padding:0}
+.ladder li{display:grid;grid-template-columns:16px minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--sen);color:var(--nezumi);font-size:14px}
+.ladder li .n{font-family:var(--f-mincho);font-weight:700;font-size:16px}
+.ladder li i{width:8px;height:8px;border:1px solid var(--nezumi);transform:rotate(45deg)}
+.ladder li.past{color:var(--washi)}
+.ladder li.past i{background:var(--kin-dim);border-color:var(--kin-dim)}
+.ladder li.cur{color:var(--kin)}
+.ladder li.cur i{background:var(--kin);border-color:var(--kin)}
+.grave{display:grid;grid-template-columns:52px minmax(0,1fr);gap:16px;padding:18px 0;border-bottom:1px solid var(--sen)}
+.grave .stone{width:52px;height:68px;border:1px solid var(--sen);border-radius:20px 20px 2px 2px;display:grid;place-items:center;font-family:var(--f-mincho);font-weight:800;font-size:20px;color:var(--nezumi);background:var(--ita)}
+.grave.grad .stone{border-color:var(--kin);color:var(--kin)}
+.grave .ep{font-family:var(--f-mincho);font-size:18px;font-weight:700;letter-spacing:.06em;margin:0}
+.grave .meta{font-size:12px;color:var(--nezumi);margin:2px 0 0}
+
+.rule{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;padding:10px 0;border-bottom:1px solid var(--sen);font-size:14px}
+.rule b{font-family:var(--f-mincho);color:var(--kin);font-size:16px}
+.mrow{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--sen)}
+.mrow .nm{min-width:0;overflow-wrap:anywhere}
+.mrow .nm small{display:block;font-size:11px;color:var(--nezumi)}
+.mrow .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.sw{border:1px solid var(--sen);background:none;padding:4px 10px;font-size:12px;letter-spacing:.08em;color:var(--nezumi)}
+.sw.on{border-color:var(--shu);color:var(--shu)}
+.addform{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:8px;margin-top:14px;align-items:center}
+.addform.o{grid-template-columns:minmax(0,1fr) auto}
+input[type=text],select{background:var(--ita);border:1px solid var(--sen);padding:9px 12px;border-radius:2px;min-width:0;width:100%}
+select{width:auto}
+.ck{display:flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
+.ck input{accent-color:var(--shu);width:16px;height:16px}
+@media (max-width:560px){.addform{grid-template-columns:1fr auto}.addform input[type=text]{grid-column:1/-1}}
+.section{margin-bottom:40px}
+.msg{font-size:12px;color:var(--shu);min-height:1.2em;margin-top:6px}
+
+/* onboarding */
+.intro{max-width:640px;margin:0 auto;padding-top:40px}
+.intro .big{font-family:var(--f-mincho);font-weight:800;font-size:clamp(40px,10vw,64px);letter-spacing:.2em;line-height:1.2;margin:0 0 12px}
+.intro p{color:var(--nezumi)}
+.suggest{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+.suggest button{border:1px dashed var(--sen);background:none;padding:5px 12px;font-size:13px;color:var(--nezumi)}
+.suggest button:hover{color:var(--washi);border-color:var(--nezumi)}
+.suggest button b{font-family:var(--f-mincho);color:var(--kin);margin-right:6px}
+
+/* overlay */
+.overlay{position:fixed;inset:0;z-index:50;background:color-mix(in srgb,var(--sumi) 94%,transparent);display:grid;place-items:center;padding:24px max(24px,env(safe-area-inset-left,0px))}
+.cere{max-width:460px;text-align:center;display:grid;gap:18px;animation:fade 1.2s ease}
+.cere .k{font-family:var(--f-mincho);font-weight:800;font-size:96px;line-height:1;color:var(--shu)}
+.cere.grad .k{color:var(--kin)}
+.cere .ep{font-family:var(--f-mincho);font-size:24px;font-weight:700;letter-spacing:.12em;line-height:1.6;text-wrap:balance;margin:0}
+.cere .meta{color:var(--nezumi);font-size:13px;line-height:2}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabh) + 18px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--ita2);border:1px solid var(--kin-dim);color:var(--washi);padding:10px 18px;font-size:14px;letter-spacing:.08em;animation:fade .4s ease;max-width:calc(100% - 32px)}
+@media (min-width:900px){.toast{bottom:28px}}
+.banner{font-size:12px;color:var(--nezumi);background:var(--ita);border:1px solid var(--sen);padding:8px 12px;margin-top:12px}
+.loading{padding:80px 0;text-align:center;color:var(--nezumi);font-family:var(--f-mincho);letter-spacing:.3em}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.backup{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.backup label.btn{display:inline-block}
+.backup input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1 class="brand">道場</h1>
+    <div class="dojochip" id="dojochip"></div>
+    <nav class="topnav" id="topnav" aria-label="ページ"></nav>
+    <div class="sync" id="sync"></div>
+  </header>
+  <div id="banner"></div>
+  <main id="app"><div class="loading">開門中</div></main>
+</div>
+<nav class="tabbar" id="tabbar" aria-label="ページ" hidden></nav>
+<div id="overlay"></div>
+<div id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+/* ---------- 定数 ---------- */
+const STATS=[{k:"tai",n:"体",d:"運動・健康"},{k:"chi",n:"知",d:"勉強・資格"},{k:"gi",n:"技",d:"仕事・創作"},{k:"shin",n:"心",d:"生活・メンタル"},{k:"toku",n:"徳",d:"お題・他者"}];
+const SN=Object.fromEntries(STATS.map(s=>[s.k,s.n]));
+const XP_H=10, XP_O=30, GRAD_DAYS=365, GRAD_BONUS=100, DOJO_DROP=2;
+const DAN=[[0,"無級"],[7,"五級"],[14,"四級"],[30,"三級"],[45,"二級"],[60,"一級"],[100,"初段"],[150,"二段"],[200,"三段"],[250,"四段"],[300,"五段"],[365,"免許皆伝"]];
+const DOJO=[[0,"荒れ寺"],[14,"草庵"],[45,"町道場"],[90,"一門"],[150,"名門道場"],[220,"本山"],[300,"総本山"],[365,"天下一道場"]];
+const TABS=[["today","本","本日"],["log","記","修行記"],["history","歴","歴代"],["rules","掟","掟"]];
+const SUG_H=[["筋トレ","tai"],["走る","tai"],["7時間眠る","tai"],["英語 30分","chi"],["読書 20頁","chi"],["資格の勉強","chi"],["創作 1時間","gi"],["プログラミング","gi"],["早起き","shin"],["瞑想 10分","shin"],["部屋を整える","shin"]];
+const SUG_O=["人に与えよ（ギブの日）","誰かに感謝を伝えよ","ひとつ捨てよ","初めてのことをひとつ試せ","誰かを本気で褒めよ","愚痴を言わずに一日を終えよ","頼まれる前に動け","スマホを置き、一時間黙せ"];
+
+/* ---------- ユーティリティ ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const ds=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const todayStr=()=>ds(new Date());
+const parse=s=>{const a=s.split("-").map(Number);return new Date(a[0],a[1]-1,a[2]);};
+const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return ds(d);};
+const diffDays=(a,b)=>{const x=a.split("-").map(Number),y=b.split("-").map(Number);return Math.round((Date.UTC(y[0],y[1]-1,y[2])-Date.UTC(x[0],x[1]-1,x[2]))/864e5);};
+const yearOf=s=>s.slice(0,4);
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+const clone=o=>JSON.parse(JSON.stringify(o));
+const hash=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;};
+const WD="日月火水木金土";
+const md=s=>{const d=parse(s);return (d.getMonth()+1)+"/"+d.getDate();};
+const wd=s=>WD[parse(s).getDay()];
+function kanji(n){
+  const D="〇一二三四五六七八九";
+  if(n<10)return D[n];
+  if(n<100){const t=Math.floor(n/10),o=n%10;return (t>1?D[t]:"")+"十"+(o?D[o]:"");}
+  return String(n);
+}
+function rankIdx(table,v){let i=0;for(let j=0;j<table.length;j++){if(v>=table[j][0])i=j;}return i;}
+function danOf(days){const i=rankIdx(DAN,days);const nx=DAN[i+1];return {i,name:DAN[i][1],from:DAN[i][0],next:nx?nx[0]:null,nextName:nx?nx[1]:null};}
+function dojoOf(pts){const i=rankIdx(DOJO,pts);const nx=DOJO[i+1];return {i,name:DOJO[i][1],from:DOJO[i][0],next:nx?nx[0]:null,nextName:nx?nx[1]:null};}
+
+/* ---------- 状態 ---------- */
+const S={main:null,mainLoaded:false,logs:{},logLoaded:{},mode:"loading",tab:"today",events:[],error:null,draft:{habits:[],odai:[]},msg:"",slow:false};
+let seenGraves=null;
+try{const v=localStorage.getItem("dojo:seen");seenGraves=v==null?null:Number(v);}catch(e){}
+function setSeen(n){seenGraves=n;try{localStorage.setItem("dojo:seen",String(n));}catch(e){}}
+
+/* ---------- 保存先 ---------- */
+let backend=null;
+function localBackend(){
+  const K=k=>"dojo:"+k;
+  const read=k=>{try{const v=localStorage.getItem(K(k));return v?JSON.parse(v):null;}catch(e){return null;}};
+  return {
+    sub(k,cb){setTimeout(()=>cb(read(k),{fromCache:false,hasPendingWrites:false}),0);return ()=>{};},
+    get:async k=>read(k),
+    set:async(k,v)=>{localStorage.setItem(K(k),JSON.stringify(v));}
+  };
+}
+function dbBackend(db,id){
+  const ref=k=>db.doc("data/users/"+id+"/"+k);
+  return {
+    sub(k,cb,err){return ref(k).onSnapshot(s=>cb(s.exists?s.data():null,s.metadata),err);},
+    get:async k=>{const s=await ref(k).get();return s.exists?s.data():null;},
+    set:(k,v)=>ref(k).set(v)
+  };
+}
+async function initBackend(){
+  let db=null,id=null;
+  try{
+    if(window.claude&&typeof window.claude.use==="function"){
+      const r=await Promise.all([window.claude.use("db"),window.claude.use("user")]);
+      db=r[0];id=r[1]?await r[1].id():null;
+    }
+  }catch(e){}
+  if(db&&id){backend=dbBackend(db,id);S.mode="cloud";}
+  else{backend=localBackend();S.mode="local";}
+}
+
+const subs={},dirty=new Set(),inflight=new Set();
+let flushTimer=null;
+function keyData(k){
+  if(k==="state")return S.main;
+  return {days:S.logs[k.slice(4)]||{}};
+}
+function save(k,delay){
+  dirty.add(k);
+  clearTimeout(flushTimer);
+  flushTimer=setTimeout(flush,delay==null?250:delay);
+}
+async function flush(){
+  for(const k of Array.from(dirty)){
+    if(inflight.has(k))continue;
+    dirty.delete(k);inflight.add(k);
+    try{await backend.set(k,clone(keyData(k)));}
+    catch(e){
+      if(e&&e.code==="unavailable"){dirty.add(k);setTimeout(flush,1500+Math.random()*1500);}
+      else{S.error=e&&e.code==="quota_exceeded"?"保存容量の上限に達しました。":"保存できませんでした。通信状態を確かめてください。";renderBanner();}
+    }
+    finally{inflight.delete(k);if(dirty.has(k))setTimeout(flush,50);}
+  }
+}
+function subscribe(k){
+  if(subs[k])return;
+  subs[k]=backend.sub(k,(v,meta)=>{
+    const busy=dirty.has(k)||inflight.has(k)||(meta&&meta.hasPendingWrites);
+    if(k==="state"){
+      if(!busy||!S.mainLoaded){S.main=v?clone(v):null;}
+      S.mainLoaded=true;S.slow=false;
+      if(S.main)ensureLogs();
+    }else{
+      const y=k.slice(4);
+      if(!busy||!S.logLoaded[y]){S.logs[y]=v&&v.days?clone(v.days):(S.logs[y]||{});}
+      S.logLoaded[y]=true;
+    }
+    afterData();
+  },e=>{S.error="データを読み込めませんでした（"+(e&&e.code||"error")+"）";renderBanner();});
+}
+function neededYears(){
+  const m=S.main,t=todayStr();
+  let from=m.gen.start;const le=addDays(m.lastEval,1);if(le<from)from=le;
+  const ys=[];for(let y=+yearOf(from);y<=+yearOf(t);y++)ys.push(String(y));
+  return ys;
+}
+function ensureLogs(){neededYears().forEach(y=>subscribe("log-"+y));}
+function ready(){return S.mainLoaded&&(!S.main||neededYears().every(y=>S.logLoaded[y]));}
+function afterData(){
+  if(!ready()){render();return;}
+  if(S.main){evaluate();}
+  render();
+}
+
+/* ---------- 掟の判定 ---------- */
+function logFor(d){const y=S.logs[yearOf(d)];const l=y&&y[d];return l&&l.g===S.main.gen.n?l:null;}
+function isReqOn(h,d){return !!h.reqFrom&&h.reqFrom<=d&&(!h.reqUntil||d<h.reqUntil);}
+function reqHabits(d){return S.main.habits.filter(h=>isReqOn(h,d));}
+function reqDone(d){
+  const r=reqHabits(d),l=logFor(d),done=l?l.h:[];
+  const n=r.filter(h=>done.includes(h.id)).length;
+  return {total:r.length,done:n,ok:n===r.length};
+}
+function passedPast(){const m=S.main;return m.lastEval>=m.gen.start?diffDays(m.gen.start,m.lastEval)+1:0;}
+function todayComplete(){const t=todayStr(),r=reqDone(t),l=logFor(t);return r.ok&&(r.total>0||(!!l&&l.h.length>0));}
+function passedLive(){return passedPast()+(todayComplete()?1:0);}
+function computeStats(){
+  const m=S.main,st={tai:0,chi:0,gi:0,shin:0,toku:0},hm={};
+  m.habits.forEach(h=>hm[h.id]=h);
+  const t=todayStr();
+  for(let d=m.gen.start;d<=t;d=addDays(d,1)){
+    const l=logFor(d);if(!l)continue;
+    l.h.forEach(id=>{const h=hm[id];if(h&&st[h.stat]!=null)st[h.stat]+=XP_H;});
+    if(l.od)st.toku+=XP_O;
+  }
+  return st;
+}
+function endGen(kind,d){
+  const m=S.main,days=passedPast();
+  const g={kind,n:m.gen.n,start:m.gen.start,end:kind==="fall"?addDays(d,-1):d,fellOn:kind==="fall"?d:null,days,dan:danOf(days).name,stats:computeStats(),at:todayStr()};
+  const before=m.dojo+days,r=dojoOf(before);
+  if(kind==="fall"){
+    const ni=Math.max(0,r.i-DOJO_DROP);
+    m.dojo=DOJO[ni][0];g.dojoFrom=r.name;g.dojoTo=DOJO[ni][1];
+  }else{
+    m.dojo=before+GRAD_BONUS;g.dojoFrom=r.name;g.dojoTo=dojoOf(m.dojo).name;
+  }
+  m.graves.push(g);
+  m.best=Math.max(m.best||0,days);
+  const t=todayStr();
+  m.gen={n:m.gen.n+1,start:t};
+  m.lastEval=addDays(t,-1);
+  S.events.push(g);
+}
+function evaluate(){
+  const m=S.main,t=todayStr();let changed=false;
+  const floor=addDays(m.gen.start,-1);
+  if(m.lastEval<floor){m.lastEval=floor;changed=true;}
+  let d=addDays(m.lastEval,1);
+  while(d<t){
+    if(!reqDone(d).ok){endGen("fall",d);changed=true;break;}
+    m.lastEval=d;changed=true;
+    if(passedPast()>=GRAD_DAYS){endGen("grad",d);break;}
+    d=addDays(d,1);
+  }
+  if(changed)save("state");
+  if(seenGraves==null)setSeen(m.graves.length-S.events.length);
+}
+
+/* ---------- 操作 ---------- */
+function todayLog(create){
+  const t=todayStr(),y=yearOf(t);
+  if(!S.logs[y])S.logs[y]={};
+  let l=S.logs[y][t];
+  if(!l||l.g!==S.main.gen.n){
+    if(!create)return null;
+    l=S.logs[y][t]={g:S.main.gen.n,h:[],o:null,od:false,note:""};
+    if(!S.main.years.includes(y)){S.main.years.push(y);save("state");}
+    if(!subs["log-"+y]){S.logLoaded[y]=true;subscribe("log-"+y);}
+  }
+  return l;
+}
+function todayOdai(){
+  const m=S.main,l=todayLog(false);
+  if(l&&l.o){const o=m.odai.find(x=>x.id===l.o);if(o)return o;}
+  const list=m.odai.filter(o=>!o.archived);
+  if(!list.length)return null;
+  return list[hash(todayStr()+":"+m.gen.n)%list.length];
+}
+function progressSnap(){return {dan:danOf(passedLive()).i,done:todayComplete()};}
+function afterAction(before){
+  const now=progressSnap();
+  render();
+  if(now.done&&!before.done){
+    const s=$(".seal");if(s){s.classList.add("pop");}
+    toast(now.dan>before.dan?"昇段。"+danOf(passedLive()).name+"となる。":"本日の掟、果たした。");
+  }
+}
+function toggleHabit(id){
+  const b=progressSnap(),l=todayLog(true),i=l.h.indexOf(id);
+  if(i<0)l.h.push(id);else l.h.splice(i,1);
+  save("log-"+yearOf(todayStr()));afterAction(b);
+}
+function toggleOdai(){
+  const o=todayOdai();if(!o)return;
+  const b=progressSnap(),l=todayLog(true);
+  l.o=o.id;l.od=!l.od;
+  save("log-"+yearOf(todayStr()));afterAction(b);
+  if(l.od)toast("徳を積んだ。+"+XP_O);
+}
+let noteTimer=null;
+function setNote(v){
+  const l=todayLog(true);l.note=v;
+  clearTimeout(noteTimer);noteTimer=setTimeout(()=>save("log-"+yearOf(todayStr()),0),700);
+}
+function reqTomorrowCount(exceptId){const tm=addDays(todayStr(),1);return S.main.habits.filter(h=>!h.archived&&h.id!==exceptId&&isReqOn(h,tm)).length;}
+function toggleReq(id){
+  const h=S.main.habits.find(x=>x.id===id),t=todayStr(),tm=addDays(t,1);
+  if(isReqOn(h,tm)){
+    if(reqTomorrowCount(id)===0){flashMsg("必須の掟は最低ひとつ残せ。");return;}
+    h.reqUntil=tm; // 本日はまだ必須。明日から外れる
+    if(h.reqFrom>t){h.reqFrom=null;h.reqUntil=null;}
+  }else if(isReqOn(h,t)&&h.reqUntil===tm){
+    h.reqUntil=null; // 取り消し
+  }else{
+    h.reqFrom=t;h.reqUntil=null;
+  }
+  save("state");render();
+}
+function archiveHabit(id){
+  const h=S.main.habits.find(x=>x.id===id),t=todayStr();
+  if(isReqOn(h,t)||isReqOn(h,addDays(t,1))){flashMsg("必須の習慣は、必須を外した翌日から削除できる。");return;}
+  h.archived=true;save("state");render();
+}
+function addHabit(name,stat,req){
+  name=name.trim();if(!name)return false;
+  const t=todayStr();
+  S.main.habits.push({id:uid(),name:name.slice(0,40),stat,reqFrom:req?t:null,reqUntil:null,createdOn:t,archived:false});
+  save("state");return true;
+}
+function addOdai(text){text=text.trim();if(!text)return false;S.main.odai.push({id:uid(),text:text.slice(0,60),archived:false});save("state");return true;}
+function archiveOdai(id){const o=S.main.odai.find(x=>x.id===id);o.archived=true;save("state");render();}
+function enter(){
+  const d=S.draft,t=todayStr();
+  if(!d.habits.some(h=>h.req))return;
+  S.main={v:1,created:t,
+    habits:d.habits.map(h=>({id:uid(),name:h.name,stat:h.stat,reqFrom:h.req?t:null,reqUntil:null,createdOn:t,archived:false})),
+    odai:d.odai.map(x=>({id:uid(),text:x,archived:false})),
+    gen:{n:1,start:t},lastEval:addDays(t,-1),dojo:0,best:0,graves:[],years:[yearOf(t)]};
+  setSeen(0);
+  S.logLoaded[yearOf(t)]=true;S.logs[yearOf(t)]=S.logs[yearOf(t)]||{};
+  save("state",0);ensureLogs();
+  go("today");render();
+}
+
+/* ---------- 表示 ---------- */
+function toast(t){const el=$("#toast");el.innerHTML='<div class="toast" role="status">'+esc(t)+"</div>";clearTimeout(toast._t);toast._t=setTimeout(()=>el.innerHTML="",2600);}
+function flashMsg(t){S.msg=t;render();clearTimeout(flashMsg._t);flashMsg._t=setTimeout(()=>{S.msg="";render();},3500);}
+function go(tab){S.tab=tab;try{history.replaceState(null,"","#"+tab);}catch(e){location.hash=tab;}render();window.scrollTo(0,0);}
+function renderNav(){
+  const h=TABS.map(t=>'<a href="#'+t[0]+'" data-tab="'+t[0]+'"'+(S.tab===t[0]?' aria-current="page"':"")+"><span>"+t[1]+"</span>"+t[2]+"</a>").join("");
+  const show=!!S.main&&ready();
+  $("#tabbar").hidden=!show;
+  $("#tabbar").innerHTML=show?h:"";
+  $("#topnav").innerHTML=show?TABS.map(t=>'<a href="#'+t[0]+'" data-tab="'+t[0]+'"'+(S.tab===t[0]?' aria-current="page"':"")+">"+t[2]+"</a>").join(""):"";
+}
+function renderHeader(){
+  const sy=$("#sync");
+  if(S.mode==="cloud"){sy.className="sync";sy.innerHTML="<i></i>同期中";}
+  else if(S.mode==="local"){sy.className="sync local";sy.innerHTML="<i></i>この端末に保存";}
+  else sy.innerHTML="";
+  const c=$("#dojochip");
+  if(S.main&&ready()){const dj=dojoOf(S.main.dojo+passedLive());c.innerHTML="道場の格 <b>"+esc(dj.name)+"</b>";}
+  else c.innerHTML="";
+}
+function renderBanner(){
+  const b=[];
+  if(S.error)b.push(esc(S.error));
+  if(S.slow&&!S.mainLoaded)b.push("記録にまだ接続できていません。通信状態を確かめてください。");
+  if(S.storageBroken)b.push("この端末では記録を保存できません。プライベートブラウズを切るか、ホーム画面に追加したアプリから開いてください。");
+  $("#banner").innerHTML=b.map(x=>'<div class="banner">'+x+"</div>").join("");
+}
+function radarSVG(st){
+  const max=Math.max(50,...STATS.map(s=>st[s.k]))*1.1,cx=140,cy=135,R=92;
+  const pt=(i,r)=>{const a=-Math.PI/2+i*2*Math.PI/5;return [cx+r*Math.cos(a),cy+r*Math.sin(a)];};
+  const poly=r=>STATS.map((_,i)=>pt(i,r).map(v=>v.toFixed(1)).join(",")).join(" ");
+  let s='<svg class="radar" viewBox="0 0 280 270" role="img" aria-label="五力：'+STATS.map(x=>x.n+st[x.k]).join("、")+'">';
+  [1/3,2/3,1].forEach(f=>s+='<polygon class="grid" points="'+poly(R*f)+'"/>');
+  STATS.forEach((_,i)=>{const p=pt(i,R);s+='<line class="axis" x1="'+cx+'" y1="'+cy+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'"/>';});
+  const vp=STATS.map((x,i)=>pt(i,Math.max(3,R*st[x.k]/max)));
+  s+='<polygon class="shape" points="'+vp.map(p=>p.map(v=>v.toFixed(1)).join(",")).join(" ")+'"/>';
+  vp.forEach(p=>s+='<circle class="dot" r="2.5" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'"/>');
+  STATS.forEach((x,i)=>{const p=pt(i,R+24);s+='<text class="lk" text-anchor="middle" x="'+p[0].toFixed(1)+'" y="'+(p[1]+2).toFixed(1)+'">'+x.n+'</text><text class="lv num" text-anchor="middle" x="'+p[0].toFixed(1)+'" y="'+(p[1]+17).toFixed(1)+'">'+st[x.k]+"</text>";});
+  return s+"</svg>";
+}
+function countdown(){
+  const n=new Date(),m=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1);
+  const mins=Math.max(0,Math.floor((m-n)/60000));
+  return "0時まで 残り "+Math.floor(mins/60)+"時間"+pad(mins%60)+"分";
+}
+function viewToday(){
+  const m=S.main,t=todayStr(),live=passedLive(),dan=danOf(live),r=reqDone(t),done=todayComplete();
+  const l=todayLog(false),doneIds=l?l.h:[];
+  const pct=dan.next?Math.round((live-dan.from)/(dan.next-dan.from)*100):100;
+  const active=m.habits.filter(h=>!h.archived||isReqOn(h,t));
+  const reqs=active.filter(h=>isReqOn(h,t)),opts=active.filter(h=>!isReqOn(h,t)&&!h.archived);
+  const o=todayOdai(),od=!!(l&&l.od&&o&&l.o===o.id);
+  const st=computeStats();
+  const tm=addDays(t,1);
+  const row=h=>{const on=doneIds.includes(h.id);const leaving=isReqOn(h,t)&&!isReqOn(h,tm);
+    return '<button class="habit" data-act="habit" data-id="'+h.id+'" aria-pressed="'+on+'"><span class="box">済</span><span class="hn">'+esc(h.name)+(leaving?"<small>本日限りの必須</small>":"")+'</span><span class="tag" title="'+esc(STATS.find(s=>s.k===h.stat).d)+'">'+SN[h.stat]+"</span></button>";};
+  return '<div class="today">'+
+  '<section class="a-hero hero" aria-label="門下生">'+
+    (done?'<div class="seal" aria-label="本日達成">成</div>':"")+
+    '<div class="gen">第'+kanji(m.gen.n)+"代 門下生</div>"+
+    '<div class="dan'+(dan.next?"":" kaiden")+'">'+esc(dan.name)+"</div>"+
+    '<div class="days"><b class="num">'+live+'</b><span>日 積み上げ</span><small>修行 '+(passedPast()+1)+"日目 · "+md(m.gen.start)+" 入門</small></div>"+
+    '<div class="prog" aria-hidden="true"><i style="width:'+pct+'%"></i></div>'+
+    '<div class="next"><span>'+(dan.next?esc(dan.nextName)+"まで あと <b class=\"num\">"+(dan.next-live)+"</b> 日":"免許皆伝。今日を越えれば卒業となる")+"</span><span>"+(dan.next?"":"")+"</span></div>"+
+    '<div class="deadline'+(done?" ok":"")+'"><span>'+(done?"<b>本日の掟、果たした</b>":"本日の必須 <b class=\"num\">"+r.done+" / "+r.total+"</b>")+'</span><span class="cd" id="cd">'+(done?"明日も待つ":countdown())+"</span></div>"+
+    '<div class="best">歴代最長 <b class="num">'+Math.max(m.best||0,live)+"日</b>"+(m.graves.length?" · これまで "+m.graves.length+"代":"")+"</div>"+
+  "</section>"+
+  '<section class="a-odai" aria-label="本日のお題"><p class="label">本日のお題</p>'+
+    (o?'<div class="odai'+(od?" done":"")+'"><div class="t">'+esc(o.text)+'</div><div class="row"><span class="xp">果たせば 徳 +'+XP_O+" ・ 果たせずとも倒れはしない</span>"+
+      '<button class="btn '+(od?"":"kin")+'" data-act="odai">'+(od?"果たした（取り消す）":"果たした")+"</button></div></div>"
+      :'<div class="odai"><div class="xp">お題が登録されていない。掟の頁で、日々の課題を書き溜めよ。</div><div><button class="btn kin" data-tab-go="rules">お題を登録する</button></div></div>')+
+  "</section>"+
+  '<section class="a-habits" aria-label="本日の習慣">'+
+    '<div class="group"><div class="glabel req"><span>必須 ── 一つでも落とせば倒れる</span><span class="num">'+r.done+"/"+r.total+"</span></div>"+(reqs.length?reqs.map(row).join(""):'<div class="empty">必須の掟がない。</div>')+"</div>"+
+    '<div class="group"><div class="glabel"><span>任意 ── 積んだ分だけ力となる</span><span>+'+XP_H+" / 件</span></div>"+(opts.length?opts.map(row).join(""):'<div class="empty">任意の習慣はまだない。</div>')+"</div>"+
+  "</section>"+
+  '<section class="a-note" aria-label="一言"><p class="label">本日の一言</p><textarea id="note" maxlength="400" placeholder="今日の自分に、ひとこと。">'+esc(l?l.note:"")+'</textarea><div class="hint">修行記に残る。0時を過ぎると書き換えられない。</div></section>'+
+  '<section class="a-stats statsbox" aria-label="五力"><p class="label">五力 ── 第'+kanji(m.gen.n)+"代</p>"+radarSVG(st)+
+    '<div class="statlist">'+STATS.map(s=>"<div><b>"+s.n+'</b><span class="num">'+st[s.k]+"</span></div>").join("")+"</div></section>"+
+  "</div>";
+}
+function viewLog(){
+  const m=S.main,hm={},om={};m.habits.forEach(h=>hm[h.id]=h);m.odai.forEach(o=>om[o.id]=o);
+  const entries=[];
+  Object.keys(S.logs).forEach(y=>Object.keys(S.logs[y]).forEach(d=>{const l=S.logs[y][d];if(l&&(l.h.length||l.od||l.note))entries.push([d,l]);}));
+  entries.sort((a,b)=>a[0]<b[0]?1:a[0]>b[0]?-1:b[1].g-a[1].g);
+  let h='<div class="page"><h2 class="h2">修行記</h2><p class="lead">日々の一言と、果たしたこと。倒れた代の記録もここに残る。</p>';
+  if(!entries.length)h+='<div class="empty">まだ記録がない。本日の頁で習慣を果たし、一言を残すとここに綴られる。</div>';
+  let g=null;
+  entries.forEach(e=>{const d=e[0],l=e[1];
+    if(l.g!==g){g=l.g;h+='<div class="genmark">第'+kanji(g)+"代"+(g===m.gen.n?"（当代）":"")+"</div>";}
+    h+='<article class="entry"><div class="d num">'+md(d)+"<small>"+yearOf(d)+" · "+wd(d)+"</small></div><div>"+
+      (l.note?'<p class="note">'+esc(l.note)+"</p>":"")+
+      '<div class="chips">'+l.h.map(id=>hm[id]?'<span class="chip">'+SN[hm[id].stat]+" "+esc(hm[id].name)+"</span>":"").join("")+
+      (l.od&&om[l.o]?'<span class="chip o">徳 '+esc(om[l.o].text)+"</span>":"")+"</div></div></article>";
+  });
+  const older=(m.years||[]).filter(y=>!S.logLoaded[y]);
+  if(older.length)h+='<div style="padding:20px 0"><button class="btn" data-act="older">さらに古い記録を読む</button></div>';
+  return h+"</div>";
+}
+function viewHistory(){
+  const m=S.main,live=passedLive(),pts=m.dojo+live,dj=dojoOf(pts),dan=danOf(live);
+  let h='<div class="page"><h2 class="h2">歴代</h2><p class="lead">超えるべきは、過去の自分。</p>';
+  h+='<div class="bestbig"><div><span>当代</span><b class="num">'+live+'<small style="font-size:14px">日</small></b></div><div><span>歴代最長</span><b class="num">'+Math.max(m.best||0,live)+'<small style="font-size:14px">日</small></b></div></div>';
+  h+='<div class="section"><p class="label">道場の格 ── 歴代の積み上げ '+pts+"日</p>"+'<ul class="ladder">'+
+    DOJO.map((r,i)=>'<li class="'+(i<dj.i?"past":i===dj.i?"cur":"")+'"><i></i><span class="n">'+r[1]+'</span><span class="num">'+(i===dj.i&&dj.next?"次まで "+(dj.next-pts)+"日":r[0]+"日")+"</span></li>").join("")+
+    '</ul><p class="hint">門下生が倒れると、道場の格は二段階下がる。免許皆伝で卒業すると、積み上げに加えて'+GRAD_BONUS+"日分が加わる。</p></div>";
+  h+='<div class="section"><p class="label">墓標と殿堂</p>';
+  if(!m.graves.length)h+='<div class="empty">まだ誰も倒れていない。第一代として、名を残せ。</div>';
+  m.graves.slice().reverse().forEach(g=>{
+    const ep=g.kind==="grad"?"第"+kanji(g.n)+"代、免許皆伝":"第"+kanji(g.n)+"代、"+g.days+"日にして倒る";
+    const top=STATS.slice().sort((a,b)=>g.stats[b.k]-g.stats[a.k])[0];
+    h+='<div class="grave'+(g.kind==="grad"?" grad":"")+'"><div class="stone">'+(g.kind==="grad"?"皆":kanji(g.n))+'</div><div><p class="ep">'+ep+'</p><p class="meta">'+esc(g.dan)+" · "+g.start.replace(/-/g,".")+" — "+(g.end<g.start?"入門の日":g.end.replace(/-/g,"."))+'</p><p class="meta">五力 '+STATS.map(s=>s.n+g.stats[s.k]).join(" ")+" · 秀でたるは"+top.n+'</p><p class="meta">道場 '+esc(g.dojoFrom)+" → "+esc(g.dojoTo)+"</p></div></div>";
+  });
+  h+="</div>";
+  h+='<div class="section"><p class="label">段位 ── 当代の積み上げ</p><ul class="ladder">'+DAN.map((r,i)=>'<li class="'+(i<dan.i?"past":i===dan.i?"cur":"")+'"><i></i><span class="n">'+r[1]+'</span><span class="num">'+r[0]+"日</span></li>").join("")+"</ul></div>";
+  return h+"</div>";
+}
+function viewRules(){
+  const m=S.main,t=todayStr(),tm=addDays(t,1);
+  let h='<div class="page"><h2 class="h2">掟</h2><p class="lead">この道場の決まり。習慣とお題はここで定める。</p>';
+  h+='<div class="section"><p class="label">三つの掟</p>'+
+    '<div class="rule"><b>一</b><span>必須の習慣を、0時までにすべて果たせ。一つでも落とせば、その代の門下生は倒れる。段位も五力も積み上げも、すべて無に帰す。</span></div>'+
+    '<div class="rule"><b>二</b><span>任意の習慣とお題は、果たした分だけ力となる。果たせずとも倒れはしない。</span></div>'+
+    '<div class="rule"><b>三</b><span>過ぎた日は書き換えられない。猶予はない。</span></div></div>';
+  h+='<div class="section"><p class="label">習慣</p>';
+  const rq=x=>isReqOn(x,t)||isReqOn(x,tm);
+  m.habits.filter(x=>!x.archived).sort((a,b)=>rq(b)-rq(a)).forEach(x=>{
+    const rt=isReqOn(x,t),rm=isReqOn(x,tm);
+    let state=rm?"必須":rt?"必須（本日まで）":"任意";
+    if(!rt&&rm)state="必須（明日から）";
+    h+='<div class="mrow"><span class="tag">'+SN[x.stat]+'</span><span class="nm">'+esc(x.name)+"<small>"+state+'</small></span><span class="acts"><button class="sw'+(rm||rt?" on":"")+'" data-act="req" data-id="'+x.id+'">'+(rm?"必須を外す":rt?"外すのをやめる":"必須にする")+'</button><button class="btn ghost sm" data-act="arch" data-id="'+x.id+'" aria-label="'+esc(x.name)+'を削除">削除</button></span></div>';
+  });
+  h+='<div class="msg" role="status">'+esc(S.msg)+"</div>";
+  h+='<form class="addform" id="addh"><input type="text" id="hname" placeholder="新しい習慣（例：腕立て 30回）" maxlength="40" aria-label="習慣の名前"><select id="hstat" aria-label="力の種類">'+STATS.map(s=>'<option value="'+s.k+'">'+s.n+"・"+s.d+"</option>").join("")+'</select><label class="ck"><input type="checkbox" id="hreq">必須</label><button class="btn kin" type="submit">加える</button></form>';
+  h+='<p class="hint">必須にした習慣は今日から必須になる。必須を外すと、明日から外れる（今日はまだ必須）。</p></div>';
+  h+='<div class="section"><p class="label">お題の帳 ── 毎朝ここから一つ出題される</p>';
+  const ol=m.odai.filter(o=>!o.archived);
+  if(!ol.length)h+='<div class="empty">まだお題がない。</div>';
+  ol.forEach(o=>h+='<div class="mrow"><span class="tag">徳</span><span class="nm">'+esc(o.text)+'</span><span class="acts"><button class="btn ghost sm" data-act="oarch" data-id="'+o.id+'" aria-label="'+esc(o.text)+'を削除">削除</button></span></div>');
+  h+='<form class="addform o" id="addo"><input type="text" id="otext" placeholder="新しいお題（例：人に与えよ）" maxlength="60" aria-label="お題"><button class="btn kin" type="submit">加える</button></form>';
+  h+='<div class="suggest">'+SUG_O.filter(s=>!ol.some(o=>o.text===s)).map(s=>'<button type="button" data-act="sugo" data-v="'+esc(s)+'">＋ '+esc(s)+"</button>").join("")+"</div><p class=\"hint\">点線は候補の例。押すと帳に加わる。</p></div>";
+  h+='<div class="section"><p class="label">記録の写し（バックアップ）</p><p class="hint" style="font-size:13px">記録はこの端末の中にだけある。機種変更やデータ消失に備え、ときどき写しを書き出しておけ。読み込むと、この端末の記録は写しの内容に置き換わる。</p>'+
+    '<div class="backup"><button class="btn kin" data-act="export">写しを書き出す</button><label class="btn" for="importfile">写しを読み込む</label><input type="file" id="importfile" accept="application/json,.json"></div>'+
+    (S.pendingImport?'<div class="banner" style="border-color:var(--shu)">'+esc(S.pendingImport.label)+' の写しで、この端末の記録を置き換える。元には戻せない。<div class="backup"><button class="btn solid" data-act="importok">置き換える</button><button class="btn" data-act="importno">やめる</button></div></div>':"")+
+    (S.backupMsg?'<p class="hint">'+esc(S.backupMsg)+"</p>":"")+
+    (m.lastBackup?'<p class="hint">最後に書き出した日：'+esc(m.lastBackup)+"</p>":"")+"</div>";
+  return h+"</div>";
+}
+function viewIntro(){
+  const d=S.draft,hasReq=d.habits.some(h=>h.req);
+  let h='<div class="intro"><p class="big">入門</p><p>ここは、静かに積み上げるための道場。<br>必須の習慣を一日でも落とせば、門下生は倒れ、すべては無に帰す。<br>それでも、また門を叩けばいい。</p>';
+  h+='<div class="section" style="margin-top:32px"><p class="label">一 ── 習慣を定める</p>';
+  d.habits.map((x,i)=>[x,i]).sort((a,b)=>b[0].req-a[0].req).forEach(([x,i])=>h+='<div class="mrow"><span class="tag">'+SN[x.stat]+'</span><span class="nm">'+esc(x.name)+'</span><span class="acts"><button class="sw'+(x.req?" on":"")+'" data-act="dreq" data-i="'+i+'">'+(x.req?"必須":"任意")+'</button><button class="btn ghost sm" data-act="ddel" data-i="'+i+'">外す</button></span></div>');
+  h+='<form class="addform" id="addh"><input type="text" id="hname" placeholder="習慣の名前" maxlength="40" aria-label="習慣の名前"><select id="hstat" aria-label="力の種類">'+STATS.map(s=>'<option value="'+s.k+'">'+s.n+"・"+s.d+"</option>").join("")+'</select><label class="ck"><input type="checkbox" id="hreq" checked>必須</label><button class="btn kin" type="submit">加える</button></form>';
+  h+='<div class="suggest">'+SUG_H.filter(s=>!d.habits.some(x=>x.name===s[0])).map(s=>'<button type="button" data-act="sugh" data-v="'+esc(s[0])+'" data-s="'+s[1]+'"><b>'+SN[s[1]]+"</b>"+esc(s[0])+"</button>").join("")+'</div><p class="hint">点線は例。押すと任意として加わり、「任意」を押すと必須に切り替わる。必須は最低ひとつ。欲張らず、必ず守れるものだけを必須にせよ。</p></div>';
+  h+='<div class="section"><p class="label">二 ── お題の帳をつくる（あとからでもよい）</p>';
+  d.odai.forEach((x,i)=>h+='<div class="mrow"><span class="tag">徳</span><span class="nm">'+esc(x)+'</span><span class="acts"><button class="btn ghost sm" data-act="dodel" data-i="'+i+'">外す</button></span></div>');
+  h+='<form class="addform o" id="addo"><input type="text" id="otext" placeholder="お題（例：人に与えよ）" maxlength="60" aria-label="お題"><button class="btn kin" type="submit">加える</button></form>';
+  h+='<div class="suggest">'+SUG_O.filter(s=>!d.odai.includes(s)).map(s=>'<button type="button" data-act="sugo" data-v="'+esc(s)+'">＋ '+esc(s)+"</button>").join("")+"</div></div>";
+  h+='<div class="section"><button class="btn solid" data-act="enter" '+(hasReq?"":"disabled")+'>入門する ── 第一代、ここに始まる</button>'+(hasReq?"":'<p class="hint">必須の習慣を一つ以上定めると入門できる。</p>')+"</div></div>";
+  return h;
+}
+function renderOverlay(){
+  const el=$("#overlay");
+  let g=S.events[0];
+  if(!g&&S.main&&seenGraves!=null&&S.main.graves.length>seenGraves)g=S.main.graves[seenGraves];
+  if(!g){el.innerHTML="";return;}
+  const fall=g.kind==="fall";
+  el.innerHTML='<div class="overlay" role="dialog" aria-modal="true" aria-label="'+(fall?"門下生が倒れた":"免許皆伝")+'"><div class="cere'+(fall?"":" grad")+'"><div class="k">'+(fall?"倒":"皆")+'</div><p class="ep">'+(fall?"第"+kanji(g.n)+"代、"+g.days+"日にして倒る":"第"+kanji(g.n)+"代、免許皆伝")+'</p><div class="meta">'+
+    (fall?md(g.fellOn)+" の必須を果たせなかった。<br>":"三百六十五日、一日も欠かさず積み上げた。<br>")+
+    "段位 "+esc(g.dan)+" ・ 五力 "+STATS.map(s=>s.n+g.stats[s.k]).join(" ")+"<br>道場 "+esc(g.dojoFrom)+" → "+esc(g.dojoTo)+
+    (fall?"<br>墓標は歴代の頁に刻まれた。":"<br>その名は殿堂に刻まれた。")+'</div><div><button class="btn solid" data-act="seen">'+(fall?"再び入門する":"次代を迎える")+"</button></div></div></div>";
+}
+let lastRenderedTab=null;
+function render(){
+  renderHeader();renderBanner();renderNav();
+  const app=$("#app");
+  if(!S.mainLoaded||!ready()){if(!S.mainLoaded)app.innerHTML='<div class="loading">開門中</div>';renderOverlay();return;}
+  const ae=document.activeElement,aid=ae&&ae.id,aval=ae&&"value" in ae?ae.value:null,sel=ae&&ae.selectionStart!=null?[ae.selectionStart,ae.selectionEnd]:null;
+  const keep={};["hname","otext","hstat"].forEach(id=>{const e=document.getElementById(id);if(e)keep[id]=e.value;});
+  const keepReq=document.getElementById("hreq");const keepReqV=keepReq?keepReq.checked:null;
+  if(!S.main)app.innerHTML=viewIntro();
+  else app.innerHTML=S.tab==="log"?viewLog():S.tab==="history"?viewHistory():S.tab==="rules"?viewRules():viewToday();
+  const tabNow=S.main?S.tab:"intro";
+  if(tabNow===lastRenderedTab){
+    Object.keys(keep).forEach(id=>{const e=document.getElementById(id);if(e)e.value=keep[id];});
+    if(keepReqV!=null){const e=document.getElementById("hreq");if(e)e.checked=keepReqV;}
+  }
+  lastRenderedTab=tabNow;
+  if(aid){const e=document.getElementById(aid);if(e){if(aval!=null&&e.value!==aval&&aid!=="note")e.value=aval;e.focus({preventScroll:true});if(sel&&e.setSelectionRange)try{e.setSelectionRange(sel[0],sel[1]);}catch(x){}}}
+  renderOverlay();
+}
+
+/* ---------- イベント ---------- */
+document.addEventListener("click",e=>{
+  const a=e.target.closest("[data-tab]");
+  if(a){e.preventDefault();go(a.dataset.tab);return;}
+  const g=e.target.closest("[data-tab-go]");if(g){go(g.dataset.tabGo);return;}
+  const b=e.target.closest("[data-act]");if(!b)return;
+  const act=b.dataset.act,id=b.dataset.id,i=+b.dataset.i;
+  if(act==="habit")toggleHabit(id);
+  else if(act==="odai")toggleOdai();
+  else if(act==="req")toggleReq(id);
+  else if(act==="arch")archiveHabit(id);
+  else if(act==="oarch")archiveOdai(id);
+  else if(act==="sugo"){if(S.main){addOdai(b.dataset.v);}else{S.draft.odai.push(b.dataset.v);}render();}
+  else if(act==="sugh"){S.draft.habits.push({name:b.dataset.v,stat:b.dataset.s,req:false});render();}
+  else if(act==="dreq"){S.draft.habits[i].req=!S.draft.habits[i].req;render();}
+  else if(act==="ddel"){S.draft.habits.splice(i,1);render();}
+  else if(act==="dodel"){S.draft.odai.splice(i,1);render();}
+  else if(act==="enter")enter();
+  else if(act==="seen"){
+    if(S.events.length){S.events.shift();}
+    if(S.main)setSeen(Math.max(seenGraves||0,S.main.graves.length-S.events.length));
+    render();
+  }
+  else if(act==="export")exportBackup();
+  else if(act==="importok")applyImport();
+  else if(act==="importno"){S.pendingImport=null;render();}
+  else if(act==="older"){
+    b.disabled=true;b.textContent="読み込み中…";
+    Promise.all(S.main.years.filter(y=>!S.logLoaded[y]).map(y=>backend.get("log-"+y).then(v=>{S.logs[y]=v&&v.days?clone(v.days):{};S.logLoaded[y]=true;}))).then(render,()=>{b.disabled=false;b.textContent="読み込めなかった。もう一度";});
+  }
+});
+document.addEventListener("submit",e=>{
+  e.preventDefault();
+  if(e.target.id==="addh"){
+    const n=$("#hname"),s=$("#hstat"),r=$("#hreq");
+    if(!n.value.trim())return;
+    if(S.main){addHabit(n.value,s.value,r.checked);}
+    else S.draft.habits.push({name:n.value.trim().slice(0,40),stat:s.value,req:r.checked});
+    n.value="";render();const nn=$("#hname");if(nn)nn.focus();
+  }else if(e.target.id==="addo"){
+    const o=$("#otext");if(!o.value.trim())return;
+    if(S.main)addOdai(o.value);else S.draft.odai.push(o.value.trim().slice(0,60));
+    o.value="";render();const oo=$("#otext");if(oo)oo.focus();
+  }
+});
+document.addEventListener("input",e=>{if(e.target.id==="note"&&S.main)setNote(e.target.value);});
+
+/* 写し（バックアップ） */
+function allLocalKeys(){const out={};try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf("dojo:")===0&&k!=="dojo:seen")out[k.slice(5)]=JSON.parse(localStorage.getItem(k));}}catch(e){}return out;}
+function exportBackup(){
+  flush();
+  const t=todayStr();
+  S.main.lastBackup=t;save("state",0);
+  const data={app:"dojo",v:1,exported:new Date().toISOString(),docs:allLocalKeys()};
+  data.docs.state=clone(S.main);
+  Object.keys(S.logs).forEach(y=>data.docs["log-"+y]={days:S.logs[y]});
+  const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="dojo-"+t+".json";
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+  S.backupMsg="写しを書き出した（dojo-"+t+".json）。";render();
+}
+document.addEventListener("change",e=>{
+  if(e.target.id!=="importfile"||!e.target.files[0])return;
+  const f=e.target.files[0],r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(d.app!=="dojo"||!d.docs||!d.docs.state||!d.docs.state.gen)throw new Error("bad");
+      S.pendingImport={data:d,label:(d.exported||"").slice(0,10)+" 書き出し・第"+kanji(d.docs.state.gen.n)+"代"};S.backupMsg="";
+    }catch(x){S.pendingImport=null;S.backupMsg="道場の写しとして読めなかった。書き出した .json ファイルを選べ。";}
+    render();
+  };
+  r.readAsText(f);
+});
+function applyImport(){
+  const d=S.pendingImport&&S.pendingImport.data;if(!d)return;
+  try{
+    Object.keys(allLocalKeys()).forEach(k=>localStorage.removeItem("dojo:"+k));
+    Object.keys(d.docs).forEach(k=>{if(k==="state"||/^log-\d{4}$/.test(k))localStorage.setItem("dojo:"+k,JSON.stringify(d.docs[k]));});
+    localStorage.setItem("dojo:seen",String((d.docs.state.graves||[]).length));
+  }catch(x){S.backupMsg="読み込めなかった。保存領域がいっぱいかもしれない。";render();return;}
+  location.reload();
+}
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(TABS.some(t=>t[0]===h)&&h!==S.tab){S.tab=h;render();}});
+
+/* 日付の切り替わりと残り時間 */
+let lastDay=todayStr();
+setInterval(()=>{
+  const t=todayStr();
+  if(t!==lastDay){lastDay=t;if(S.main&&ready()){ensureLogs();evaluate();}render();return;}
+  const cd=$("#cd");if(cd&&S.main&&!todayComplete())cd.textContent=countdown();
+},15000);
+
+/* 起動 */
+(async function(){
+  const h=location.hash.slice(1);if(TABS.some(t=>t[0]===h))S.tab=h;
+  const slow=setTimeout(()=>{if(!S.mainLoaded){S.slow=true;renderBanner();}},10000);
+  try{localStorage.setItem("dojo:probe","1");localStorage.removeItem("dojo:probe");}catch(e){S.storageBroken=true;}
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+  if("serviceWorker" in navigator&&location.protocol!=="file:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+  await initBackend();
+  render();
+  subscribe("state");
+  const iv=setInterval(()=>{if(S.mainLoaded){clearTimeout(slow);clearInterval(iv);renderBanner();}},500);
+})();
+})();
+</script>
+</body>
+</html>
